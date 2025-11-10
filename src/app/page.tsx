@@ -1,5 +1,3 @@
-'use client';
-
 import { useState } from 'react';
 import ConnectWallet from '@/components/ConnectWallet';
 import Header from '@/components/Header';
