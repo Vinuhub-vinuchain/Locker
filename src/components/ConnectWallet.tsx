@@ -1,17 +1,22 @@
+'use client';
+
 import { useEffect } from 'react';
 import { ethers } from 'ethers';
 import { vinuChain, LOCKER_CONTRACT_ADDRESS, LOCKER_CONTRACT_ABI } from '@/lib/contracts';
 import { logDebug } from '@/lib/utils';
 
 interface Props {
+  walletAddress: string | null;
   setWalletAddress: (address: string | null) => void;
   setIsOwner: (isOwner: boolean) => void;
 }
 
-export default function ConnectWallet({ setWalletAddress, setIsOwner }: Props) {
+export default function ConnectWallet({ walletAddress, setWalletAddress, setIsOwner }: Props) {
   const showStatus = (message: string, type: 'success' | 'error') => {
     const statusDiv = document.createElement('div');
-    statusDiv.className = `fixed bottom-4 right-4 p-4 rounded-lg ${type === 'success' ? 'bg-green-900 border border-green-500' : 'bg-red-900 border border-red-500'} text-white`;
+    statusDiv.className = `fixed bottom-4 right-4 p-4 rounded-lg ${
+      type === 'success' ? 'bg-green-900 border border-green-500' : 'bg-red-900 border border-red-500'
+    } text-white`;
     statusDiv.innerHTML = message;
     document.body.appendChild(statusDiv);
     setTimeout(() => statusDiv.remove(), 5000);
@@ -22,24 +27,19 @@ export default function ConnectWallet({ setWalletAddress, setIsOwner }: Props) {
     logDebug('Connect Wallet button clicked');
     if (!window.ethereum) {
       showStatus('MetaMask not detected. Please install MetaMask.', 'error');
-      logDebug('Error: window.ethereum undefined');
       return;
     }
 
     try {
-      logDebug('Requesting accounts...');
       const provider = new ethers.providers.Web3Provider(window.ethereum);
       const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
       if (!accounts || accounts.length === 0) {
         showStatus('No accounts found. Please unlock MetaMask.', 'error');
-        logDebug('Error: No accounts returned');
         return;
       }
 
       const network = await provider.getNetwork();
-      logDebug(`Current chain ID: ${network.chainId}`);
       if (network.chainId !== 207) {
-        logDebug('Attempting to switch to VinuChain...');
         try {
           await window.ethereum.request({
             method: 'wallet_switchEthereumChain',
@@ -47,14 +47,12 @@ export default function ConnectWallet({ setWalletAddress, setIsOwner }: Props) {
           });
         } catch (switchError: any) {
           if (switchError.code === 4902) {
-            logDebug('Adding VinuChain...');
             await window.ethereum.request({
               method: 'wallet_addEthereumChain',
               params: [vinuChain],
             });
           } else {
             showStatus(`Failed to switch to VinuChain: ${switchError.message}`, 'error');
-            logDebug(`Switch error: ${switchError.message}`);
             return;
           }
         }
@@ -66,24 +64,16 @@ export default function ConnectWallet({ setWalletAddress, setIsOwner }: Props) {
       const owner = await contract.owner();
       setWalletAddress(address);
       setIsOwner(owner.toLowerCase() === address.toLowerCase());
-      logDebug(`Connected wallet: ${address}, isOwner: ${owner.toLowerCase() === address.toLowerCase()}`);
       showStatus(`Connected: ${address}${owner.toLowerCase() === address.toLowerCase() ? ' (Admin)' : ''}`, 'success');
     } catch (error: any) {
       showStatus(`Failed to connect: ${error.message}`, 'error');
-      logDebug(`Connect error: ${error.message}`);
     }
   };
 
   useEffect(() => {
     if (window.ethereum) {
-      window.ethereum.on('chainChanged', () => {
-        logDebug('Chain changed, reloading...');
-        window.location.reload();
-      });
-      window.ethereum.on('accountsChanged', () => {
-        logDebug('Accounts changed, reloading...');
-        window.location.reload();
-      });
+      window.ethereum.on('chainChanged', () => window.location.reload());
+      window.ethereum.on('accountsChanged', () => window.location.reload());
     }
   }, []);
 

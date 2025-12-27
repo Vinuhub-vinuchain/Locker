@@ -16,26 +16,27 @@ export default function Analytics() {
   useEffect(() => {
     const loadAnalytics = async () => {
       try {
-        logDebug('Loading analytics...');
         const provider = new ethers.providers.Web3Provider(window.ethereum);
         const contract = new ethers.Contract(LOCKER_CONTRACT_ADDRESS, LOCKER_CONTRACT_ABI, provider);
+
         const [totalLocked, uniqueTokens, activeLocks, totalValueUSD] = await Promise.all([
           contract.totalLocked().catch(() => ethers.BigNumber.from(0)),
           contract.uniqueTokens().catch(() => 0),
           contract.activeLocks().catch(() => 0),
           contract.totalValueUSD().catch(() => ethers.BigNumber.from(0)),
         ]);
+
         setAnalytics({
           totalLocked: ethers.utils.formatEther(totalLocked),
           uniqueTokens,
           activeLocks,
           totalValueUSD: ethers.utils.formatUnits(totalValueUSD, 18),
         });
-        logDebug(`Analytics: totalLocked=${totalLocked}, uniqueTokens=${uniqueTokens}, activeLocks=${activeLocks}, totalValueUSD=${totalValueUSD}`);
       } catch (error: any) {
         logDebug(`Analytics error: ${error.message}`);
       }
     };
+
     loadAnalytics();
   }, []);
 
@@ -62,3 +63,4 @@ export default function Analytics() {
       </div>
     </div>
   );
+}

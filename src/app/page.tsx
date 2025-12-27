@@ -1,3 +1,4 @@
+"use client"
 import { useState } from 'react';
 import ConnectWallet from '@/components/ConnectWallet';
 import Header from '@/components/Header';
@@ -15,7 +16,11 @@ export default function Home() {
   return (
     <div className="container mx-auto p-4">
       <Header />
-      <ConnectWallet setWalletAddress={setWalletAddress} setIsOwner={setIsOwner} />
+        <ConnectWallet
+        walletAddress={walletAddress}
+        setWalletAddress={setWalletAddress}
+        setIsOwner={setIsOwner}
+      />
       <CreateLockForm walletAddress={walletAddress} isOwner={isOwner} />
       <UserLocks walletAddress={walletAddress} />
       <LockHistory walletAddress={walletAddress} />
