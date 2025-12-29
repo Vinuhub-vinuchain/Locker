@@ -1,7 +1,15 @@
 # Dependencies
 /node_modules
 
-# Build output
+# Build output (Hardhat)
+/artifacts
+/artifacts-build-info  # Optional: if you commit artifacts, ignore this subfolder as it's huge
+/cache
+
+
+/typechain
+/typechain-types
+
 /dist
 
 # Environment variables
@@ -19,6 +27,11 @@
 
 # Test coverage
 /coverage
+/coverage.json
 
-# Vite cache
+# Vite cache (if using Vite for frontend)
 .vite
+
+
+/deployments/*
+!deployments/.gitkeep  # Keep a placeholder if you want the folder structure
