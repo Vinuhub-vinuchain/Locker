@@ -22,7 +22,3 @@
 
 # Vite cache
 .vite
-node_modules/
-.next/
-build/
-.Readme.md
