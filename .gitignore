@@ -1,37 +1,42 @@
-# Dependencies
-/node_modules
 
-# Build output (Hardhat)
-/artifacts
-/artifacts-build-info  # Optional: if you commit artifacts, ignore this subfolder as it's huge
-/cache
+# Node modules
+node_modules/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
 
+# Build output
+dist/
+build/
 
-/typechain
-/typechain-types
+# Vite cache
+.vite/
 
-/dist
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# TypeScript
+*.tsbuildinfo
 
 # Environment variables
 .env
 .env.local
-.env.development
-.env.production
+.env.*.local
 
-# Editor files
+# Editor directories and files
 .vscode/
 .idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
 
-# OS files
+# MacOS
 .DS_Store
 
-# Test coverage
-/coverage
-/coverage.json
-
-# Vite cache (if using Vite for frontend)
-.vite
-
-
-/deployments/*
-!deployments/.gitkeep  # Keep a placeholder if you want the folder structure
+# Windows
+Thumbs.db
