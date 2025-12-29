@@ -25,3 +25,4 @@
 node_modules/
 .next/
 build/
+.Readme.md
