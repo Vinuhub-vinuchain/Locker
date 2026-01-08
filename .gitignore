@@ -24,5 +24,4 @@ out/
 .vscode/
 Thumbs.db
 
-# Lockfiles 
-package-lock.json 
+
