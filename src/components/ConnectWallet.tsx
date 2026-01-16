@@ -31,7 +31,8 @@ export default function ConnectWallet({ walletAddress, setWalletAddress, setIsOw
     }
 
     try {
-      const provider = new ethers.providers.Web3Provider(window.ethereum);
+      // @ts-ignore – MetaMask injects this at runtime
+const provider = new ethers.providers.Web3Provider(window.ethereum);
       const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
       if (!accounts || accounts.length === 0) {
         showStatus('No accounts found. Please unlock MetaMask.', 'error');
