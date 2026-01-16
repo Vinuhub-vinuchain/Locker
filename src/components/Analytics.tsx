@@ -27,7 +27,8 @@ export default function Analytics() {
       }
 
       try {
-        const provider = new ethers.providers.Web3Provider(window.ethereum);
+        // @ts-ignore – MetaMask injects this at runtime
+const provider = new ethers.providers.Web3Provider(window.ethereum);
         const contract = new ethers.Contract(
           LOCKER_CONTRACT_ADDRESS,
           LOCKER_CONTRACT_ABI,
