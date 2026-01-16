@@ -1,9 +1,23 @@
+'use client';
+
 import { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
-import { LOCKER_CONTRACT_ADDRESS, ERC20_ABI, LOCKER_CONTRACT_ABI, vinuChain } from '@/lib/contracts';
+import {
+  LOCKER_CONTRACT_ADDRESS,
+  ERC20_ABI,
+  LOCKER_CONTRACT_ABI,
+  vinuChain,
+} from '@/lib/contracts';
 import { TokenDetails as TokenDetailsType } from '@/lib/types';
 import { logDebug, shareOnX } from '@/lib/utils';
 import TokenDetails from './TokenDetails';
+
+// Extend Window for Ethereum provider
+declare global {
+  interface Window {
+    ethereum?: any;
+  }
+}
 
 interface Props {
   walletAddress: string | null;
@@ -17,7 +31,12 @@ export default function CreateLockForm({ walletAddress, isOwner }: Props) {
   const [cliffDuration, setCliffDuration] = useState('');
   const [vestingDuration, setVestingDuration] = useState('');
   const [beneficiary, setBeneficiary] = useState('');
-  const [tokenDetails, setTokenDetails] = useState<TokenDetailsType>({ name: 'N/A', symbol: 'N/A', decimals: 18, balance: '0' });
+  const [tokenDetails, setTokenDetails] = useState<TokenDetailsType>({
+    name: 'N/A',
+    symbol: 'N/A',
+    decimals: 18,
+    balance: '0',
+  });
   const [gasEstimate, setGasEstimate] = useState('');
   const [status, setStatus] = useState('');
   const [priceTokenAddress, setPriceTokenAddress] = useState('');
@@ -38,27 +57,53 @@ export default function CreateLockForm({ walletAddress, isOwner }: Props) {
       return;
     }
 
+    if (!window.ethereum) {
+      setGasEstimate('Ethereum provider not found');
+      return;
+    }
+
     try {
       logDebug('Fetching token details...');
       const provider = new ethers.providers.Web3Provider(window.ethereum);
       const tokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, provider);
+
       const [name, symbol, decimals, balance] = await Promise.all([
         tokenContract.name().catch(() => 'Unknown'),
         tokenContract.symbol().catch(() => 'Unknown'),
         tokenContract.decimals().catch(() => 18),
         tokenContract.balanceOf(walletAddress).catch(() => '0'),
       ]);
-      setTokenDetails({ name, symbol, decimals, balance: ethers.utils.formatUnits(balance, decimals) });
+
+      setTokenDetails({
+        name,
+        symbol,
+        decimals,
+        balance: ethers.utils.formatUnits(balance, decimals),
+      });
+
       logDebug(`Token details: name=${name}, symbol=${symbol}, decimals=${decimals}, balance=${balance}`);
 
+      // Gas estimate if lockAmount is valid
       if (lockAmount && !isNaN(parseFloat(lockAmount)) && parseFloat(lockAmount) > 0) {
         try {
-          const contract = new ethers.Contract(LOCKER_CONTRACT_ADDRESS, LOCKER_CONTRACT_ABI, provider.getSigner());
+          const contract = new ethers.Contract(
+            LOCKER_CONTRACT_ADDRESS,
+            LOCKER_CONTRACT_ABI,
+            provider.getSigner()
+          );
           const amount = ethers.utils.parseUnits(lockAmount, decimals);
           const startTime = Math.floor(Date.now() / 1000) + 86400;
           const cliff = parseInt(cliffDuration) || 0;
           const vesting = parseInt(vestingDuration) || 0;
-          const gas = await contract.estimateGas.createLock(tokenAddress, amount, startTime, cliff * 86400, vesting * 86400, walletAddress);
+
+          const gas = await contract.estimateGas.createLock(
+            tokenAddress,
+            amount,
+            startTime,
+            cliff * 86400,
+            vesting * 86400,
+            walletAddress
+          );
           const gasPrice = await provider.getGasPrice();
           setGasEstimate(`Est. Gas: ${ethers.utils.formatEther(gas.mul(gasPrice)).slice(0, 6)} VC`);
           logDebug(`Gas estimate: ${ethers.utils.formatEther(gas.mul(gasPrice))}`);
@@ -68,7 +113,6 @@ export default function CreateLockForm({ walletAddress, isOwner }: Props) {
         }
       } else {
         setGasEstimate('Enter a valid amount to estimate gas');
-        logDebug('Gas estimation skipped: Invalid or missing lock amount');
       }
     } catch (error: any) {
       setGasEstimate('Invalid token address');
@@ -82,16 +126,28 @@ export default function CreateLockForm({ walletAddress, isOwner }: Props) {
   }, [tokenAddress, lockAmount, walletAddress]);
 
   const handleCreateLock = async () => {
+    if (!walletAddress) {
+      showStatus('Connect your wallet first.', 'error');
+      return;
+    }
+
     if (!ethers.utils.isAddress(tokenAddress)) {
       showStatus('Invalid token address.', 'error');
       return;
     }
+
     if (!lockAmount || isNaN(parseFloat(lockAmount)) || parseFloat(lockAmount) <= 0) {
       showStatus('Invalid lock amount.', 'error');
       return;
     }
+
     if (!startDate) {
       showStatus('Please select a start date.', 'error');
+      return;
+    }
+
+    if (!window.ethereum) {
+      showStatus('Ethereum provider not found', 'error');
       return;
     }
 
@@ -101,16 +157,20 @@ export default function CreateLockForm({ walletAddress, isOwner }: Props) {
       const signer = provider.getSigner();
       const tokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, signer);
       const contract = new ethers.Contract(LOCKER_CONTRACT_ADDRESS, LOCKER_CONTRACT_ABI, signer);
+
       const amount = ethers.utils.parseUnits(lockAmount, tokenDetails.decimals);
       const startTime = Math.floor(new Date(startDate).getTime() / 1000);
       const cliff = parseInt(cliffDuration) || 0;
       const vesting = parseInt(vestingDuration) || 0;
-      const beneficiaryAddr = beneficiary || walletAddress;
+
+      // Ensure beneficiary is always a string
+      const beneficiaryAddr = beneficiary?.trim() ? beneficiary : walletAddress;
 
       if (!ethers.utils.isAddress(beneficiaryAddr)) {
         showStatus('Invalid beneficiary address.', 'error');
         return;
       }
+
       if (vesting > 0 && cliff > vesting) {
         showStatus('Cliff duration cannot exceed vesting duration.', 'error');
         return;
@@ -125,11 +185,26 @@ export default function CreateLockForm({ walletAddress, isOwner }: Props) {
       }
 
       showStatus('Creating lock...', 'success');
-      const tx = await contract.createLock(tokenAddress, amount, startTime, cliff * 86400, vesting * 86400, beneficiaryAddr);
+      const tx = await contract.createLock(
+        tokenAddress,
+        amount,
+        startTime,
+        cliff * 86400,
+        vesting * 86400,
+        beneficiaryAddr
+      );
       await tx.wait();
-      showStatus(`Lock created! <a href="${vinuChain.blockExplorerUrls[0]}/tx/${tx.hash}" target="_blank">View Tx</a>`, 'success');
+
+      showStatus(
+        `Lock created! <a href="${vinuChain.blockExplorerUrls[0]}/tx/${tx.hash}" target="_blank">View Tx</a>`,
+        'success'
+      );
       logDebug(`Lock created, tx: ${tx.hash}`);
-      shareOnX(`Created a lock for ${ethers.utils.formatUnits(amount, tokenDetails.decimals)} ${tokenDetails.symbol} on VinuHub!`, tx.hash);
+      shareOnX(
+        `Created a lock for ${ethers.utils.formatUnits(amount, tokenDetails.decimals)} ${tokenDetails.symbol} on VinuHub!`,
+        tx.hash
+      );
+
       setTokenAddress('');
       setLockAmount('');
       setStartDate('');
@@ -144,12 +219,23 @@ export default function CreateLockForm({ walletAddress, isOwner }: Props) {
   };
 
   const handleSetTokenPrice = async () => {
+    if (!walletAddress) {
+      showStatus('Connect your wallet first.', 'error');
+      return;
+    }
+
     if (!ethers.utils.isAddress(priceTokenAddress)) {
       showStatus('Invalid token address.', 'error');
       return;
     }
+
     if (!tokenPrice || isNaN(parseFloat(tokenPrice)) || parseFloat(tokenPrice) <= 0) {
       showStatus('Invalid price.', 'error');
+      return;
+    }
+
+    if (!window.ethereum) {
+      showStatus('Ethereum provider not found', 'error');
       return;
     }
 
@@ -161,9 +247,14 @@ export default function CreateLockForm({ walletAddress, isOwner }: Props) {
       const gas = await contract.estimateGas.setTokenPrice(priceTokenAddress, price);
       const gasPrice = await provider.getGasPrice();
       setPriceGasEstimate(`Est. Gas: ${ethers.utils.formatEther(gas.mul(gasPrice)).slice(0, 6)} VC`);
+
       const tx = await contract.setTokenPrice(priceTokenAddress, price);
       await tx.wait();
-      showStatus(`Token price set! <a href="${vinuChain.blockExplorerUrls[0]}/tx/${tx.hash}" target="_blank">View Tx</a>`, 'success');
+
+      showStatus(
+        `Token price set! <a href="${vinuChain.blockExplorerUrls[0]}/tx/${tx.hash}" target="_blank">View Tx</a>`,
+        'success'
+      );
       logDebug(`Token price set, tx: ${tx.hash}`);
       setPriceTokenAddress('');
       setTokenPrice('');
@@ -252,6 +343,7 @@ export default function CreateLockForm({ walletAddress, isOwner }: Props) {
           )}
         </div>
       </div>
+
       {isOwner && (
         <div className="card p-6 rounded-lg mb-8">
           <h2 className="text-2xl font-semibold mb-4">Manage Token Prices (Admin)</h2>

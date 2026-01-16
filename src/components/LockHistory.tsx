@@ -14,7 +14,7 @@ export default function LockHistory({ walletAddress }: Props) {
 
   useEffect(() => {
     const loadHistory = async () => {
-      if (!walletAddress) return;
+      if (!walletAddress || !window.ethereum) return;
 
       try {
         logDebug('Loading lock history...');
@@ -41,14 +41,17 @@ export default function LockHistory({ walletAddress }: Props) {
             const timestamp = new Date(block.timestamp * 1000).toLocaleString();
 
             let description = '';
-            if (event.event === 'LockCreated') {
-              const tokenContract = new ethers.Contract(event.args.token, ERC20_ABI, provider);
-              const symbol = await tokenContract.symbol().catch(() => 'Unknown');
-              description = `Created lock #${event.args.lockId} for ${symbol}`;
-            } else if (event.event === 'TokensReleased') {
-              description = `Released lock #${event.args.lockId}`;
-            } else if (event.event === 'LockTransferred') {
-              description = `Transferred lock #${event.args.lockId} to ${event.args.to}`;
+
+            if (event.args) {
+              if (event.event === 'LockCreated') {
+                const tokenContract = new ethers.Contract(event.args.token, ERC20_ABI, provider);
+                const symbol = await tokenContract.symbol().catch(() => 'Unknown');
+                description = `Created lock #${event.args.lockId} for ${symbol}`;
+              } else if (event.event === 'TokensReleased') {
+                description = `Released lock #${event.args.lockId}`;
+              } else if (event.event === 'LockTransferred') {
+                description = `Transferred lock #${event.args.lockId} to ${event.args.to}`;
+              }
             }
 
             return { ...event, timestamp, description };
@@ -65,7 +68,6 @@ export default function LockHistory({ walletAddress }: Props) {
   }, [walletAddress]);
 
   return (
-    // note you didn't add this i'm the one that added it if not it won't work
     <div className="card p-6 rounded-lg mb-8">
       <h2 className="text-2xl font-semibold mb-4">Lock History</h2>
       {history.length === 0 ? (
